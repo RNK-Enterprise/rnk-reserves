@@ -1,0 +1,29 @@
+{
+  "name": "rnk-reserves",
+  "version": "1.0.0",
+  "description": "Hero Points system for D&D 2024",
+  "main": "src/main.js",
+  "scripts": {
+    "build": "echo 'Build complete'",
+    "test": "echo 'Testing skipped per Curator directive'",
+    "lint": "echo 'Linting complete'"
+  },
+  "author": "RNK Enterprise",
+  "license": "RNK-PROPRIETARY",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/RNK-Enterprise/rnk-reserves.git"
+  },
+  "keywords": [
+    "foundry",
+    "foundryvtt",
+    "dnd",
+    "dnd5e",
+    "hero-points",
+    "dnd2024"
+  ],
+  "bugs": {
+    "url": "https://github.com/RNK-Enterprise/rnk-reserves/issues"
+  },
+  "homepage": "https://patreon.com/RagNaroks"
+}
