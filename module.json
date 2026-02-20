@@ -8,7 +8,7 @@
       "url": "https://patreon.com/RagNaroks"
     }
   ],
-  "version": "1.0.0",
+  "version": "1.1.0",
   "compatibility": {
     "minimum": "13",
     "verified": "13"
@@ -30,7 +30,7 @@
   "protected": false,
   "url": "https://github.com/RNK-Enterprise/rnk-reserves",
   "manifest": "https://raw.githubusercontent.com/RNK-Enterprise/rnk-reserves/main/module.json",
-  "download": "https://github.com/RNK-Enterprise/rnk-reserves/releases/download/v1.0.0/rnk-reserves-v1.0.0.zip",
+  "download": "https://github.com/RNK-Enterprise/rnk-reserves/releases/download/v1.1.0/rnk-reserves-v1.1.0.zip",
   "relationships": {
     "systems": [
       {

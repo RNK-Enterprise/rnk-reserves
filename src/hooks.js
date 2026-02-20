@@ -26,7 +26,15 @@ function addHeroPointButtons(message, html, data) {
   const actor = getActorFromMessage(message);
   if (!actor) return;
 
+  // Skip NPCs unless explicitly enabled
+  if (actor.type === 'npc' && !actor.getFlag('rnk-reserves', 'heroPointsEnabled')) return;
+
   const heroPoints = actor.getFlag ? (actor.getFlag('rnk-reserves', 'heroPoints') || 0) : 0;
+
+  // Check if heal button is enabled (global setting + per-actor flag)
+  const globalHeal = game.settings.get('rnk-reserves', 'enableHealButton');
+  const actorHeal = actor.getFlag('rnk-reserves', 'healEnabled') ?? true;
+  const showHeal = globalHeal && actorHeal;
 
   // Create button container
   const buttonContainer = document.createElement('div');
@@ -38,7 +46,7 @@ function addHeroPointButtons(message, html, data) {
     <div class="rnk-reserves-actions">
       <button class="rnk-reserves-btn" data-action="reroll">Reroll (1)</button>
       <button class="rnk-reserves-btn" data-action="bonus">+10 (1)</button>
-      <button class="rnk-reserves-btn" data-action="heal">Heal (1)</button>
+      ${showHeal ? '<button class="rnk-reserves-btn" data-action="heal">Heal (1)</button>' : ''}
     </div>
   `;
 
@@ -218,9 +226,11 @@ function awardSessionPoints() {
  * Initialize Hero Points on an actor
  */
 function initializeHeroPoints(actor) {
+  // Skip NPCs — they must be explicitly enabled via the API
+  if (actor.type === 'npc') return;
+
   if (!actor.getFlag('rnk-reserves', 'heroPoints')) {
-    const defaultPoints = (actor.type === 'npc' && !game.settings.get('rnk-reserves', 'enableNPCs')) ? 0 : 0;
-    actor.setFlag('rnk-reserves', 'heroPoints', defaultPoints);
+    actor.setFlag('rnk-reserves', 'heroPoints', 0);
   }
 }
 
@@ -236,7 +246,12 @@ function updateHeroPointsDisplay(actor) {
  */
 function addGMControls(sheet, html, data) {
   const actor = sheet.actor;
+
+  // Skip NPCs unless explicitly enabled
+  if (actor.type === 'npc' && !actor.getFlag('rnk-reserves', 'heroPointsEnabled')) return;
+
   const heroPoints = actor.getFlag('rnk-reserves', 'heroPoints') || 0;
+  const healEnabled = actor.getFlag('rnk-reserves', 'healEnabled') ?? true;
 
   // Create GM controls container
   const gmControls = document.createElement('div');
@@ -251,6 +266,7 @@ function addGMControls(sheet, html, data) {
       <button class="rnk-reserves-gm-btn" data-action="award-3">+3</button>
       <button class="rnk-reserves-gm-btn" data-action="reset">Reset</button>
       <button class="rnk-reserves-gm-btn" data-action="set-zero">Set 0</button>
+      <button class="rnk-reserves-gm-btn ${healEnabled ? 'active' : ''}" data-action="toggle-heal">${healEnabled ? 'Heal: ON' : 'Heal: OFF'}</button>
     </div>
   `;
 
@@ -292,6 +308,12 @@ async function handleGMAction(actor, action) {
     case 'set-zero':
       newPoints = 0;
       break;
+    case 'toggle-heal': {
+      const currentHeal = actor.getFlag('rnk-reserves', 'healEnabled') ?? true;
+      await actor.setFlag('rnk-reserves', 'healEnabled', !currentHeal);
+      ui.notifications.info(`Heal for ${actor.name} is now ${!currentHeal ? 'enabled' : 'disabled'}`);
+      return;
+    }
     default:
       return;
   }

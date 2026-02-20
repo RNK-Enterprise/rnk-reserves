@@ -26,9 +26,56 @@ class RNKReservesModule {
 
   static ready() {
     console.log('RNK Reserves | Module ready');
+  }
 
-    // Initialize the main application if needed
-    // For now, just ensure settings are loaded
+  /**
+   * Enable Hero Points on a specific NPC by actor ID.
+   * Usage (console or macro): RNKReserves.enableNPC("actorId", 3)
+   * @param {string} actorId - The actor's ID
+   * @param {number} [points=1] - Number of Hero Points to assign
+   */
+  static async enableNPC(actorId, points = 1) {
+    if (!game.user.isGM) {
+      ui.notifications.warn('Only the GM can enable NPC Hero Points.');
+      return;
+    }
+
+    const actor = game.actors.get(actorId);
+    if (!actor) {
+      ui.notifications.error(`Actor not found: ${actorId}`);
+      return;
+    }
+
+    const maxPoints = game.settings.get('rnk-reserves', 'maxPoints');
+    const clamped = Math.min(Math.max(points, 0), maxPoints);
+
+    await actor.setFlag('rnk-reserves', 'heroPointsEnabled', true);
+    await actor.setFlag('rnk-reserves', 'heroPoints', clamped);
+
+    ui.notifications.info(`Hero Points enabled for ${actor.name} (${actor.type}) with ${clamped} points.`);
+  }
+
+  /**
+   * Disable Hero Points on a specific NPC by actor ID.
+   * Usage (console or macro): RNKReserves.disableNPC("actorId")
+   * @param {string} actorId - The actor's ID
+   */
+  static async disableNPC(actorId) {
+    if (!game.user.isGM) {
+      ui.notifications.warn('Only the GM can disable NPC Hero Points.');
+      return;
+    }
+
+    const actor = game.actors.get(actorId);
+    if (!actor) {
+      ui.notifications.error(`Actor not found: ${actorId}`);
+      return;
+    }
+
+    await actor.setFlag('rnk-reserves', 'heroPointsEnabled', false);
+    await actor.setFlag('rnk-reserves', 'heroPoints', 0);
+
+    ui.notifications.info(`Hero Points disabled for ${actor.name}.`);
   }
 }
 

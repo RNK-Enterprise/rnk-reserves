@@ -74,3 +74,8 @@
 .rnk-reserves-gm-btn:hover {
   background: #e6d4a8;
 }
+
+.rnk-reserves-gm-btn.active {
+  background: #8b4513;
+  color: #f4e4bc;
+}

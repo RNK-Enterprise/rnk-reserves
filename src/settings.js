@@ -33,14 +33,14 @@ export function registerSettings() {
     }
   });
 
-  // Enable Hero Points for NPCs
-  game.settings.register('rnk-reserves', 'enableNPCs', {
-    name: 'Enable for NPCs',
-    hint: 'Allow NPCs to have Hero Points (default 0)',
+  // Enable Heal button on chat cards
+  game.settings.register('rnk-reserves', 'enableHealButton', {
+    name: 'Enable Heal Button',
+    hint: 'Show the Heal button on Hero Point chat cards (spends 1 point to regain 1d6 + level HP)',
     scope: 'world',
     config: true,
     type: Boolean,
-    default: false
+    default: true
   });
 
   // Auto-award at session start
@@ -50,6 +50,6 @@ export function registerSettings() {
     scope: 'world',
     config: true,
     type: Boolean,
-    default: true
+    default: false
   });
 }
