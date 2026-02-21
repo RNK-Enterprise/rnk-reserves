@@ -68,7 +68,8 @@ export class RNKReserves extends FormApplication {
         }
 
         const currentPoints = actor.getFlag('rnk-reserves', 'heroPoints') || 0;
-        const maxPoints = game.settings.get('rnk-reserves', 'maxPoints');
+        const level = actor.system.details?.level || 1;
+        const maxPoints = 5 + Math.floor(level / 2);
         const newPoints = Math.min(currentPoints + pointsToAdd, maxPoints);
 
         await actor.setFlag('rnk-reserves', 'heroPoints', newPoints);

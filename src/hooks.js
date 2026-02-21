@@ -17,10 +17,10 @@ function getActorFromMessage(message) {
 }
 
 /**
- * Add Hero Point buttons to chat messages and roll dialogs
+ * Add Hero Point buttons to chat messages
  */
 function addHeroPointButtons(message, html, data) {
-  // Only add if actor has Hero Points (for display)
+  // Only add if actor has Hero Points
   if (!html || !message) return;
   
   const actor = getActorFromMessage(message);
@@ -29,24 +29,34 @@ function addHeroPointButtons(message, html, data) {
   // Skip NPCs unless explicitly enabled
   if (actor.type === 'npc' && !actor.getFlag('rnk-reserves', 'heroPointsEnabled')) return;
 
-  const heroPoints = actor.getFlag ? (actor.getFlag('rnk-reserves', 'heroPoints') || 0) : 0;
+  const heroPoints = actor.getFlag('rnk-reserves', 'heroPoints') || 0;
+  if (heroPoints <= 0) return;
 
-  // Check if heal button is enabled (global setting + per-actor flag)
-  const globalHeal = game.settings.get('rnk-reserves', 'enableHealButton');
-  const actorHeal = actor.getFlag('rnk-reserves', 'healEnabled') ?? true;
-  const showHeal = globalHeal && actorHeal;
+  // Determine if this is a d20 roll or a death save
+  const roll = message.rolls?.[0];
+  const isD20 = roll?.terms?.[0]?.faces === 20;
+  const isDeathSave = message.getFlag('dnd5e', 'roll')?.type === 'death' || 
+                      message.flavor?.toLowerCase().includes('death saving throw');
+
+  if (!isD20 && !isDeathSave) return;
 
   // Create button container
   const buttonContainer = document.createElement('div');
   buttonContainer.className = 'rnk-reserves-buttons';
+  
+  let actionsHtml = '';
+  if (isDeathSave) {
+    actionsHtml = `<button class="rnk-reserves-btn" data-action="deathSuccess">Success (1)</button>`;
+  } else if (isD20) {
+    actionsHtml = `<button class="rnk-reserves-btn" data-action="addD6">Add 1d6 (1)</button>`;
+  }
+
   buttonContainer.innerHTML = `
     <div class="rnk-reserves-header">
       <span>Hero Points: ${heroPoints}</span>
     </div>
     <div class="rnk-reserves-actions">
-      <button class="rnk-reserves-btn" data-action="reroll">Reroll (1)</button>
-      <button class="rnk-reserves-btn" data-action="bonus">+10 (1)</button>
-      ${showHeal ? '<button class="rnk-reserves-btn" data-action="heal">Heal (1)</button>' : ''}
+      ${actionsHtml}
     </div>
   `;
 
@@ -78,76 +88,67 @@ async function handleHeroPointAction(actor, action, message) {
   }
 
   // Confirm spending
+  const content = action === 'deathSuccess' 
+    ? "Spend 1 Hero Point to turn this failed Death Save into a success?" 
+    : "Spend 1 Hero Point to add 1d6 to this roll?";
+    
   const confirmed = await Dialog.confirm({
     title: 'Spend Hero Point?',
-    content: `Spend 1 Hero Point to ${getActionDescription(action)}?`
+    content: content
   });
 
   if (!confirmed) return;
 
   // Spend the point
-  await actor.setFlag('rnk-reserves', 'heroPoints', heroPoints - 1);
+  const newPoints = heroPoints - 1;
+  await actor.setFlag('rnk-reserves', 'heroPoints', newPoints);
 
   // Emit socket to sync
-  emitSocketMessage('spendHeroPoint', {
+  emitSocketMessage('updateHeroPoints', {
     actorId: actor.id,
-    action: action
+    points: newPoints
   });
 
   // Apply the action
   switch (action) {
-    case 'reroll':
-      await handleReroll(message);
+    case 'addD6':
+      await handleAddD6(message, actor);
       break;
-    case 'bonus':
-      await handleBonus(message);
-      break;
-    case 'heal':
-      await handleHeal(actor);
+    case 'deathSuccess':
+      await handleDeathSaveSuccess(message, actor);
       break;
   }
 }
 
 /**
- * Get description for action
+ * Add 1d6 to a d20 roll
  */
-function getActionDescription(action) {
-  switch (action) {
-    case 'reroll': return 'reroll this roll';
-    case 'bonus': return 'add +10 to this roll';
-    case 'heal': return 'regain hit points';
-    default: return 'perform action';
-  }
-}
+async function handleAddD6(message, actor) {
+  const bonusRoll = await new Roll('1d6').evaluate();
+  const totalBonus = bonusRoll.total;
 
-/**
- * Handle reroll action
- */
-async function handleReroll(message) {
-  ui.notifications.info('Hero Point spent for reroll! (Re-roll manually)');
-}
-
-/**
- * Handle bonus action
- */
-async function handleBonus(message) {
-  ui.notifications.info('Hero Point spent for +10 bonus! (Apply manually)');
-}
-
-/**
- * Handle heal action
- */
-async function handleHeal(actor) {
-  const level = actor.system.details?.level || 1;
-  const healAmount = new Roll('1d6 + @level', { level }).evaluate({ async: false });
-  await actor.update({
-    'system.attributes.hp.value': Math.min(
-      actor.system.attributes.hp.value + healAmount.total,
-      actor.system.attributes.hp.max
-    )
+  await bonusRoll.toMessage({
+    speaker: ChatMessage.getSpeaker({actor}),
+    flavor: `Hero Point: Adding 1d6 to ${message.flavor || 'roll'}`
   });
-  ui.notifications.info(`Hero Point spent! Regained ${healAmount.total} HP.`);
+
+  ui.notifications.info(`Added ${totalBonus} to the roll!`);
 }
+
+/**
+ * Handle Death Save automatic success
+ */
+async function handleDeathSaveSuccess(message, actor) {
+  await ChatMessage.create({
+    speaker: ChatMessage.getSpeaker({actor}),
+    content: `<div class="dnd5e chat-card"><header class="card-header"><h3>Hero Point: Death Save Success!</h3></header>
+              <div class="card-content">The failed death saving throw has been turned into a SUCCESS.</div></div>`,
+    flavor: "Hero Point spent for Death Save Success"
+  });
+  
+  ui.notifications.info("Death Saving Throw turned into success!");
+}
+
 
 export function registerHooks() {
   // Add buttons to chat messages
@@ -158,22 +159,31 @@ export function registerHooks() {
     if (!game.user.isGM) {
       const actor = getActorFromMessage(message);
       if (!actor) return;
+      
+      // Verify the user is the owner/controller of this actor
+      if (!actor.isOwner) return;
+
       const heroPoints = actor.getFlag('rnk-reserves', 'heroPoints') || 0;
       if (heroPoints <= 0) return;
     }
     addHeroPointButtons(message, html, data);
   });
 
-  // Add buttons to roll dialogs
-  Hooks.on('renderDialog', (dialog, html, data) => {
-    // GM always sees, players only if they have points
-    if (!game.user.isGM) {
-      // For dialogs, check if there's an actor context
-      // This might need adjustment based on dialog type
-      return; // Skip for now, focus on chat messages
-    }
-    if (dialog.title?.includes('Roll') || dialog.title?.includes('Check')) {
-      addHeroPointButtons(dialog, html, data);
+  // Level-up detection and refresh
+  Hooks.on('preUpdateActor', (actor, updateData, options, userId) => {
+    const newLevel = foundry.utils.getProperty(updateData, 'system.details.level');
+    if (newLevel !== undefined) {
+      const oldLevel = actor.system.details?.level || 1;
+      if (newLevel > oldLevel) {
+        // Character leveled up!
+        const newMax = 5 + Math.floor(newLevel / 2);
+        
+        // Unspent points are lost, set to new total
+        foundry.utils.setProperty(updateData, 'flags.rnk-reserves.heroPoints', newMax);
+        
+        // Notify the user
+        ui.notifications.info(`${actor.name} reached level ${newLevel}! Hero Points refreshed to ${newMax}.`);
+      }
     }
   });
 
@@ -185,12 +195,7 @@ export function registerHooks() {
 
   // Initialize Hero Points on actors
   Hooks.on('ready', () => {
-    // Auto-award points if enabled
-    if (game.settings.get('rnk-reserves', 'autoAward') && game.user.isGM) {
-      awardSessionPoints();
-    }
-
-    // Ensure all actors have Hero Points initialized
+    // Ensure all actors have Hero Points initialized according to 2024 rules
     game.actors.forEach(actor => {
       initializeHeroPoints(actor);
     });
@@ -198,47 +203,26 @@ export function registerHooks() {
 
   // Sync Hero Points when actor updates
   Hooks.on('updateActor', (actor, data, options, userId) => {
-    // Handle Hero Points updates
-    if (data.flags?.['rnk-reserves']?.heroPoints !== undefined) {
-      // Update UI if needed
-      updateHeroPointsDisplay(actor);
+    if (foundry.utils.hasProperty(data, 'flags.rnk-reserves.heroPoints')) {
+      const points = foundry.utils.getProperty(data, 'flags.rnk-reserves.heroPoints');
+      console.log(`RNK Reserves | Actor ${actor.name} Hero Points updated to: ${points}`);
     }
   });
 }
 
 /**
- * Award session points to all player characters
- */
-function awardSessionPoints() {
-  const points = game.settings.get('rnk-reserves', 'pointsPerSession');
-  const maxPoints = game.settings.get('rnk-reserves', 'maxPoints');
-
-  game.actors.forEach(actor => {
-    if (actor.type === 'character' && actor.hasPlayerOwner) {
-      const currentPoints = actor.getFlag('rnk-reserves', 'heroPoints') || 0;
-      const newPoints = Math.min(currentPoints + points, maxPoints);
-      actor.setFlag('rnk-reserves', 'heroPoints', newPoints);
-    }
-  });
-}
-
-/**
- * Initialize Hero Points on an actor
+ * Initialize Hero Points on an actor according to 2024 rules
  */
 function initializeHeroPoints(actor) {
   // Skip NPCs — they must be explicitly enabled via the API
   if (actor.type === 'npc') return;
 
-  if (!actor.getFlag('rnk-reserves', 'heroPoints')) {
-    actor.setFlag('rnk-reserves', 'heroPoints', 0);
+  const currentPoints = actor.getFlag('rnk-reserves', 'heroPoints');
+  if (currentPoints === undefined) {
+    const level = actor.system.details?.level || 1;
+    const initialPoints = 5 + Math.floor(level / 2);
+    actor.setFlag('rnk-reserves', 'heroPoints', initialPoints);
   }
-}
-
-/**
- * Update Hero Points display (placeholder for future UI)
- */
-function updateHeroPointsDisplay(actor) {
-  // Future: Update any UI elements showing Hero Points
 }
 
 /**
@@ -251,26 +235,25 @@ function addGMControls(sheet, html, data) {
   if (actor.type === 'npc' && !actor.getFlag('rnk-reserves', 'heroPointsEnabled')) return;
 
   const heroPoints = actor.getFlag('rnk-reserves', 'heroPoints') || 0;
-  const healEnabled = actor.getFlag('rnk-reserves', 'healEnabled') ?? true;
+  const level = actor.system.details?.level || 1;
+  const maxPoints = 5 + Math.floor(level / 2);
 
   // Create GM controls container
   const gmControls = document.createElement('div');
   gmControls.className = 'rnk-reserves-gm-controls';
   gmControls.innerHTML = `
     <div class="rnk-reserves-gm-header">
-      <span>Hero Points: ${heroPoints}</span>
+      <span>Reserves: ${heroPoints}/${maxPoints}</span>
     </div>
     <div class="rnk-reserves-gm-actions">
-      <button class="rnk-reserves-gm-btn" data-action="award-1">+1</button>
-      <button class="rnk-reserves-gm-btn" data-action="award-2">+2</button>
-      <button class="rnk-reserves-gm-btn" data-action="award-3">+3</button>
-      <button class="rnk-reserves-gm-btn" data-action="reset">Reset</button>
-      <button class="rnk-reserves-gm-btn" data-action="set-zero">Set 0</button>
-      <button class="rnk-reserves-gm-btn ${healEnabled ? 'active' : ''}" data-action="toggle-heal">${healEnabled ? 'Heal: ON' : 'Heal: OFF'}</button>
+      <button type="button" class="rnk-reserves-gm-btn" data-action="award" title="Grant 1 Hero Point"><i class="fas fa-plus"></i></button>
+      <button type="button" class="rnk-reserves-gm-btn" data-action="subtract" title="Remove 1 Hero Point"><i class="fas fa-minus"></i></button>
+      <button type="button" class="rnk-reserves-gm-btn" data-action="reset" title="Refresh to Level Max"><i class="fas fa-sync"></i></button>
+      <button type="button" class="rnk-reserves-gm-btn" data-action="set-zero" title="Set to 0"><i class="fas fa-times"></i></button>
     </div>
   `;
 
-  // Add to sheet header or appropriate location
+  // Add to sheet header
   const header = html.find('.window-header');
   if (header.length) {
     header.append(gmControls);
@@ -278,9 +261,12 @@ function addGMControls(sheet, html, data) {
 
   // Add event listeners
   gmControls.addEventListener('click', async (event) => {
-    const action = event.target.dataset.action;
+    // Find the button (in case icon was clicked)
+    const btn = event.target.closest('button');
+    if (!btn) return;
+    const action = btn.dataset.action;
     if (action) {
-      await handleGMAction(actor, action);
+      await handleGMAction(actor, action, heroPoints, maxPoints);
     }
   });
 }
@@ -288,32 +274,22 @@ function addGMControls(sheet, html, data) {
 /**
  * Handle GM actions for awarding/resetting Hero Points
  */
-async function handleGMAction(actor, action) {
-  const maxPoints = game.settings.get('rnk-reserves', 'maxPoints');
-  let newPoints;
+async function handleGMAction(actor, action, currentPoints, maxPoints) {
+  let newPoints = currentPoints;
 
   switch (action) {
-    case 'award-1':
-      newPoints = Math.min((actor.getFlag('rnk-reserves', 'heroPoints') || 0) + 1, maxPoints);
+    case 'award':
+      newPoints = Math.min(currentPoints + 1, maxPoints);
       break;
-    case 'award-2':
-      newPoints = Math.min((actor.getFlag('rnk-reserves', 'heroPoints') || 0) + 2, maxPoints);
-      break;
-    case 'award-3':
-      newPoints = Math.min((actor.getFlag('rnk-reserves', 'heroPoints') || 0) + 3, maxPoints);
+    case 'subtract':
+      newPoints = Math.max(currentPoints - 1, 0);
       break;
     case 'reset':
-      newPoints = game.settings.get('rnk-reserves', 'pointsPerSession');
+      newPoints = maxPoints;
       break;
     case 'set-zero':
       newPoints = 0;
       break;
-    case 'toggle-heal': {
-      const currentHeal = actor.getFlag('rnk-reserves', 'healEnabled') ?? true;
-      await actor.setFlag('rnk-reserves', 'healEnabled', !currentHeal);
-      ui.notifications.info(`Heal for ${actor.name} is now ${!currentHeal ? 'enabled' : 'disabled'}`);
-      return;
-    }
     default:
       return;
   }
@@ -326,5 +302,7 @@ async function handleGMAction(actor, action) {
     points: newPoints
   });
 
-  ui.notifications.info(`Hero Points for ${actor.name} set to ${newPoints}`);
+  ui.notifications.info(`${actor.name} Hero Points set to ${newPoints}`);
+}
+
 }

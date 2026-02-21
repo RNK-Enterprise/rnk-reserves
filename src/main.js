@@ -46,8 +46,7 @@ class RNKReservesModule {
       return;
     }
 
-    const maxPoints = game.settings.get('rnk-reserves', 'maxPoints');
-    const clamped = Math.min(Math.max(points, 0), maxPoints);
+    const clamped = Math.max(points, 0);
 
     await actor.setFlag('rnk-reserves', 'heroPointsEnabled', true);
     await actor.setFlag('rnk-reserves', 'heroPoints', clamped);
