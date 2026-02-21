@@ -304,5 +304,3 @@ async function handleGMAction(actor, action, currentPoints, maxPoints) {
 
   ui.notifications.info(`${actor.name} Hero Points set to ${newPoints}`);
 }
-
-}

@@ -1,6 +1,6 @@
 {
   "name": "rnk-reserves",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "description": "Hero Points system for D&D 2024",
   "main": "src/main.js",
   "scripts": {
