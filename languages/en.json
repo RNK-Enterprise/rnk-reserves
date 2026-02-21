@@ -19,9 +19,3 @@
     }
   }
 }
-      "rerollSpent": "Hero Point spent for reroll! (Re-roll manually)",
-      "bonusSpent": "Hero Point spent for +10 bonus! (Apply manually)",
-      "healSpent": "Hero Point spent! Regained {amount} HP."
-    }
-  }
-}
