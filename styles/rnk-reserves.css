@@ -79,3 +79,44 @@
   background: #8b4513;
   color: #f4e4bc;
 }
+
+/* Settings Menu Styles */
+.rnk-reserves-settings {
+  padding: 10px;
+}
+
+.rnk-reserves-settings h2 {
+  border-bottom: 2px solid #8b4513;
+  padding-bottom: 5px;
+  color: #8b4513;
+}
+
+.rnk-reserves-settings .form-group {
+  margin: 15px 0;
+}
+
+.rnk-reserves-settings .form-fields {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+}
+
+.rnk-reserves-settings .rnk-get-uuid {
+  max-width: 40px;
+  flex: 0 0 40px;
+}
+
+.rnk-reserves-settings .rnk-award-points {
+  width: 100%;
+  padding: 8px;
+  font-weight: bold;
+  background: #f4e4bc;
+  border: 2px solid #8b4513;
+  color: #8b4513;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.rnk-reserves-settings .rnk-award-points:hover {
+  background: #e6d4a8;
+}

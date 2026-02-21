@@ -1,8 +1,27 @@
 /**
  * Settings registration for RNK Reserves
  */
+import { RNKReserves } from './apps/RNKReserves.js';
 
 export function registerSettings() {
+  // Register the Settings Menu
+  game.settings.registerMenu('rnk-reserves', 'reservesMenu', {
+    name: 'Hero Point Management',
+    label: 'Open Management UI',
+    hint: 'Configure Hero Points and manage actor assignments.',
+    icon: 'fas fa-shield-alt',
+    type: RNKReserves,
+    restricted: true
+  });
+
+  // Target Actor UUID for point management
+  game.settings.register('rnk-reserves', 'targetActorUuid', {
+    scope: 'world',
+    config: false,
+    type: String,
+    default: ''
+  });
+
   // Points awarded per session
   game.settings.register('rnk-reserves', 'pointsPerSession', {
     name: 'Points Per Session',

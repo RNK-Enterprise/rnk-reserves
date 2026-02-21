@@ -1,5 +1,29 @@
-<div class="rnk-reserves-settings">
+<form class="rnk-reserves-settings">
   <h2>RNK Reserves - Hero Points Management</h2>
-  <p>Configure Hero Points settings in Foundry's module settings.</p>
-  <!-- Future: Add GM controls here -->
-</div>
+  <div class="form-group">
+    <label>Target Actor UUID</label>
+    <div class="form-fields">
+      <input type="text" name="targetActorUuid" value="{{targetActorUuid}}" placeholder="Actor.123abc...">
+      <button type="button" class="rnk-get-uuid" title="Get UUID from Selected Token">
+        <i class="fas fa-crosshairs"></i>
+      </button>
+    </div>
+    <p class="notes">The UUID of the actor currently being managed.</p>
+  </div>
+
+  <hr>
+
+  <h3>Add Points</h3>
+  <div class="form-group">
+    <label>Points to Add</label>
+    <div class="form-fields">
+      <input type="number" name="pointsToAdd" value="1" min="1" step="1">
+    </div>
+  </div>
+
+  <div class="form-group">
+    <button type="button" class="rnk-award-points">
+      <i class="fas fa-plus"></i> Award Hero Points
+    </button>
+  </div>
+</form>
