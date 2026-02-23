@@ -1,7 +1,8 @@
 {
   "name": "rnk-reserves",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "description": "Hero Points system for D&D 2024",
+  "type": "module",
   "main": "src/main.js",
   "scripts": {
     "build": "echo 'Build complete'",
@@ -20,7 +21,8 @@
     "dnd",
     "dnd5e",
     "hero-points",
-    "dnd2024"
+    "dnd2024",
+    "v13"
   ],
   "bugs": {
     "url": "https://github.com/RNK-Enterprise/rnk-reserves/issues"
