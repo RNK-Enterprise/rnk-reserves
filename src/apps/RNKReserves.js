@@ -4,7 +4,7 @@
  */
 import { emitSocketMessage } from '../socket.js';
 
-export class RNKReserves extends foundry.applications.api.ApplicationV2 {
+export class RNKReserves extends foundry.applications.api.HandlebarsApplicationMixin(foundry.applications.api.ApplicationV2) {
   static DEFAULT_OPTIONS = {
     id: 'rnk-reserves',
     tag: 'form',
