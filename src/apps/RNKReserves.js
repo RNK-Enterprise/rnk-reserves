@@ -4,87 +4,99 @@
  */
 import { emitSocketMessage } from '../socket.js';
 
-export class RNKReserves extends FormApplication {
-  static get defaultOptions() {
-    return foundry.utils.mergeObject(super.defaultOptions, {
-      id: 'rnk-reserves',
+export class RNKReserves extends foundry.applications.api.ApplicationV2 {
+  static DEFAULT_OPTIONS = {
+    id: 'rnk-reserves',
+    tag: 'form',
+    window: {
+      icon: 'fas fa-shield-alt',
       title: 'RNK Reserves',
-      template: 'modules/rnk-reserves/templates/settings.html',
+      resizable: true
+    },
+    position: {
       width: 500,
-      height: 'auto',
-      resizable: true,
-      closeOnSubmit: false,
-      submitOnChange: false,
-      submitOnClose: false
-    });
-  }
+      height: 'auto'
+    }
+  };
 
-  getData() {
+  static PARTS = {
+    form: {
+      template: 'modules/rnk-reserves/templates/settings.html'
+    }
+  };
+
+  async _prepareContext(options) {
     return {
       targetActorUuid: game.settings.get('rnk-reserves', 'targetActorUuid')
     };
   }
 
-  async _updateObject(event, formData) {
-    // Required by FormApplication, but handling logic manually in listeners for now
+  _onSubmit(formData) {
+    // Handle form submission if needed
   }
 
-  activateListeners(html) {
-    super.activateListeners(html);
+  _attachPartListeners(partId, htmlElement, options) {
+    super._attachPartListeners(partId, htmlElement, options);
 
-    // Save UUID on change
-    html.find('input[name="targetActorUuid"]').on('change', event => {
-      const value = event.target.value;
-      game.settings.set('rnk-reserves', 'targetActorUuid', value);
-    });
+    if (partId === 'form') {
+      const htmlElement_obj = htmlElement instanceof HTMLElement ? htmlElement : htmlElement[0];
 
-    // Get UUID from selection
-    html.find('.rnk-get-uuid').on('click', event => {
-      const tokens = canvas.tokens.controlled;
-      if (tokens.length === 0) {
-        return ui.notifications.warn("No token selected on the canvas!");
-      }
-      const actor = tokens[0].actor;
-      if (!actor) return;
-      
-      const uuid = actor.uuid;
-      html.find('input[name="targetActorUuid"]').val(uuid).trigger('change');
-      ui.notifications.info(`Target set to: ${actor.name}`);
-    });
+      // Save UUID on change
+      htmlElement_obj.querySelector('input[name="targetActorUuid"]')?.addEventListener('change', event => {
+        const value = event.target.value;
+        game.settings.set('rnk-reserves', 'targetActorUuid', value);
+      });
 
-    // Award points
-    html.find('.rnk-award-points').on('click', async event => {
-      const uuid = game.settings.get('rnk-reserves', 'targetActorUuid');
-      const pointsToAdd = parseInt(html.find('input[name="pointsToAdd"]').val()) || 0;
+      // Get UUID from selection
+      htmlElement_obj.querySelector('.rnk-get-uuid')?.addEventListener('click', event => {
+        const tokens = canvas.tokens.controlled;
+        if (tokens.length === 0) {
+          return ui.notifications.warn("No token selected on the canvas!");
+        }
+        const actor = tokens[0].actor;
+        if (!actor) return;
+        
+        const uuid = actor.uuid;
+        const uuidInput = htmlElement_obj.querySelector('input[name="targetActorUuid"]');
+        uuidInput.value = uuid;
+        uuidInput.dispatchEvent(new Event('change', { bubbles: true }));
+        ui.notifications.info(`Target set to: ${actor.name}`);
+      });
 
-      if (!uuid) {
-        return ui.notifications.error("No target actor UUID specified!");
-      }
+      // Award points
+      htmlElement_obj.querySelector('.rnk-award-points')?.addEventListener('click', async event => {
+        const uuid = game.settings.get('rnk-reserves', 'targetActorUuid');
+        const pointsToAdd = parseInt(htmlElement_obj.querySelector('input[name="pointsToAdd"]').value) || 0;
 
-      try {
-        const actor = await fromUuid(uuid);
-        if (!actor || actor.documentName !== "Actor") {
-          return ui.notifications.error("Invalid Actor UUID!");
+        if (!uuid) {
+          return ui.notifications.error("No target actor UUID specified!");
         }
 
-        const currentPoints = actor.getFlag('rnk-reserves', 'heroPoints') || 0;
-        const level = actor.system.details?.level || 1;
-        const maxPoints = 5 + Math.floor(level / 2);
-        const newPoints = Math.min(currentPoints + pointsToAdd, maxPoints);
+        try {
+          const actor = await fromUuid(uuid);
+          if (!actor || actor.documentName !== "Actor") {
+            return ui.notifications.error("Invalid Actor UUID!");
+          }
 
-        await actor.setFlag('rnk-reserves', 'heroPoints', newPoints);
-        
-        // Emit socket to sync
-        emitSocketMessage('updateHeroPoints', {
-          actorId: actor.id,
-          points: newPoints
-        });
-        
-        ui.notifications.info(`Awarded ${pointsToAdd} Hero Points to ${actor.name}. Total: ${newPoints}`);
-      } catch (err) {
-        ui.notifications.error("Error retrieving actor from UUID.");
-        console.error(err);
-      }
-    });
+          const currentPoints = actor.getFlag('rnk-reserves', 'heroPoints') || 0;
+          const level = actor.system.details?.level || 1;
+          const maxPoints = 5 + Math.floor(level / 2);
+          const newPoints = Math.min(currentPoints + pointsToAdd, maxPoints);
+
+          await actor.setFlag('rnk-reserves', 'heroPoints', newPoints);
+          
+          // Emit socket to sync
+          emitSocketMessage('updateHeroPoints', {
+            actorId: actor.id,
+            points: newPoints
+          });
+          
+          ui.notifications.info(`Awarded ${pointsToAdd} Hero Points to ${actor.name}. Total: ${newPoints}`);
+        } catch (err) {
+          ui.notifications.error("Error retrieving actor from UUID.");
+          console.error(err);
+        }
+      });
+    }
   }
 }
