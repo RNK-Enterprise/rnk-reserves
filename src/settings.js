@@ -2,6 +2,7 @@
  * Settings registration for RNK Reserves
  */
 import { RNKReserves } from './apps/RNKReserves.js';
+import { RNKReservesLogViewer } from './apps/LogViewer.js';
 
 export function registerSettings() {
   // Register the Settings Menu
@@ -11,6 +12,16 @@ export function registerSettings() {
     hint: 'Configure Hero Points and manage actor assignments.',
     icon: 'fas fa-shield-alt',
     type: RNKReserves,
+    restricted: true
+  });
+
+  // Register the Log Viewer Menu
+  game.settings.registerMenu('rnk-reserves', 'logViewerMenu', {
+    name: 'Hero Point Activity Log',
+    label: 'View Activity Log',
+    hint: 'View all hero point spending history and actor summaries.',
+    icon: 'fas fa-book',
+    type: RNKReservesLogViewer,
     restricted: true
   });
 
@@ -30,5 +41,13 @@ export function registerSettings() {
     config: true,
     type: Boolean,
     default: true
+  });
+
+  // Hero Points Activity Log (hidden setting for storing log data)
+  game.settings.register('rnk-reserves', 'heroPointsLog', {
+    scope: 'world',
+    config: false,
+    type: Array,
+    default: []
   });
 }

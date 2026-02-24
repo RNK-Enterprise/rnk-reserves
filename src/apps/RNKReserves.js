@@ -3,6 +3,8 @@
  * Placeholder for future GM controls or additional UI
  */
 import { emitSocketMessage } from '../socket.js';
+import { logHeroPointSpending } from '../logger.js';
+import { RNKReservesLogViewer } from './LogViewer.js';
 
 export class RNKReserves extends foundry.applications.api.HandlebarsApplicationMixin(foundry.applications.api.ApplicationV2) {
   static DEFAULT_OPTIONS = {
@@ -85,6 +87,15 @@ export class RNKReserves extends foundry.applications.api.HandlebarsApplicationM
 
           await actor.setFlag('rnk-reserves', 'heroPoints', newPoints);
           
+          // Log the award
+          logHeroPointSpending(
+            actor.id,
+            actor.name,
+            pointsToAdd,
+            newPoints,
+            'awarded'
+          );
+          
           // Emit socket to sync
           emitSocketMessage('updateHeroPoints', {
             actorId: actor.id,
@@ -96,6 +107,11 @@ export class RNKReserves extends foundry.applications.api.HandlebarsApplicationM
           ui.notifications.error("Error retrieving actor from UUID.");
           console.error(err);
         }
+      });
+
+      // Open Activity Log
+      htmlElement_obj.querySelector('.rnk-open-log-viewer')?.addEventListener('click', event => {
+        new RNKReservesLogViewer().render(true);
       });
     }
   }

@@ -1,6 +1,7 @@
 /**
  * Socket communication for RNK Reserves
  */
+import { logHeroPointSpending } from './logger.js';
 
 export function registerSocket() {
   // Register socket handler
@@ -39,7 +40,21 @@ export function emitSocketMessage(type, data) {
 function handleHeroPointsUpdate(data) {
   const actor = game.actors.get(data.actorId);
   if (actor) {
-    actor.setFlag('rnk-reserves', 'heroPoints', data.points);
+    const oldPoints = actor.getFlag('rnk-reserves', 'heroPoints') || 0;
+    const newPoints = data.points;
+    actor.setFlag('rnk-reserves', 'heroPoints', newPoints);
+    
+    // Log the update
+    if (game.user.isGM) {
+      logHeroPointSpending(
+        data.actorId,
+        actor.name,
+        Math.max(0, oldPoints - newPoints),
+        newPoints,
+        'awarded',
+        data.userId
+      );
+    }
   }
 }
 
@@ -51,7 +66,20 @@ function handleHeroPointSpend(data) {
   if (actor) {
     const currentPoints = actor.getFlag('rnk-reserves', 'heroPoints') || 0;
     if (currentPoints > 0) {
-      actor.setFlag('rnk-reserves', 'heroPoints', currentPoints - 1);
+      const newPoints = currentPoints - 1;
+      actor.setFlag('rnk-reserves', 'heroPoints', newPoints);
+      
+      // Log the spending
+      if (game.user.isGM) {
+        logHeroPointSpending(
+          data.actorId,
+          actor.name,
+          1,
+          newPoints,
+          data.action || 'spent',
+          data.userId
+        );
+      }
     }
   }
 }

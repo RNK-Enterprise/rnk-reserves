@@ -1,4 +1,5 @@
 import { emitSocketMessage } from './socket.js';
+import { logHeroPointSpending } from './logger.js';
 
 /**
  * Get actor from chat message
@@ -102,6 +103,18 @@ async function handleHeroPointAction(actor, action, message) {
   // Spend the point
   const newPoints = heroPoints - 1;
   await actor.setFlag('rnk-reserves', 'heroPoints', newPoints);
+
+  // Log the spending
+  if (game.user.isGM) {
+    const actionLabel = action === 'deathSuccess' ? 'Death Save Success' : 'Add 1d6';
+    logHeroPointSpending(
+      actor.id,
+      actor.name,
+      1,
+      newPoints,
+      actionLabel
+    );
+  }
 
   // Emit socket to sync
   emitSocketMessage('updateHeroPoints', {

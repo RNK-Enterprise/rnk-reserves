@@ -7,6 +7,7 @@ import { RNKReserves } from './apps/RNKReserves.js';
 import { registerSettings } from './settings.js';
 import { registerHooks } from './hooks.js';
 import { registerSocket } from './socket.js';
+import { initializeLogger } from './logger.js';
 
 class RNKReservesModule {
   static ID = 'rnk-reserves';
@@ -26,6 +27,7 @@ class RNKReservesModule {
 
   static ready() {
     console.log('RNK Reserves | Module ready');
+    initializeLogger();
   }
 
   /**
